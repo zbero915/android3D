@@ -1,0 +1,229 @@
+private static final float PI = (float) Math.PI;
+    private static final float P2 = (float) Math.PI / 2;
+    private static final float P3 = 3* (float) Math.PI / 2;
+    private static final float DR = PI / 180;
+    private static final int FOV = 60;
+
+
+    private static final int MAP_WIDTH = 8;
+    private static final int MAP_HEIGHT = 8;
+    private static final int MAP_SIZE = 64;
+    private final int[] map = {
+            1,1,1,1,1,1,1,1,
+            1,0,1,0,0,0,0,1,
+            1,0,1,0,0,0,0,1,
+            1,0,1,0,0,0,0,1,
+            1,0,0,0,0,0,0,1,
+            1,0,0,0,0,1,0,1,
+            1,0,0,0,0,0,0,1,
+            1,1,1,1,1,1,1,1,
+    };
+
+    private float px, py, pdx, pdy, pa;
+
+
+    public game(Context context) {
+        super(context);
+        init();
+    }
+
+    private void init() {
+        //setBackgroundColor(Color.rgb(76, 76, 76)); // Background color
+        px = 150;
+        py = 400;
+        pa = 90;
+        pdx = (float) Math.cos(Math.toRadians(pa));
+        pdy = (float) -Math.sin(Math.toRadians(pa));
+    }
+
+    @Override
+    protected void onDraw(@NonNull Canvas canvas) {
+        super.onDraw(canvas);
+        drawMap(canvas);
+        drawRay(canvas);
+        drawPlayer(canvas);
+    }
+
+    private void drawMap(Canvas canvas) {
+        Paint paint = new Paint();
+        for (int y = 0; y < MAP_HEIGHT; y++) {
+            for (int x = 0; x < MAP_WIDTH; x++) {
+                if (map[y * MAP_WIDTH + x] == 1) {
+                    paint.setColor(Color.WHITE);
+                } else {
+                    paint.setColor(Color.BLACK);
+                }
+                canvas.drawRect(
+                        x * MAP_SIZE + 1,
+                        y * MAP_SIZE + 1,
+                        (x + 1) * MAP_SIZE - 1,
+                        (y + 1) * MAP_SIZE - 1,
+                        paint);
+            }
+        }
+    }
+    private void drawPlayer(@NonNull Canvas canvas) {
+        Paint paint = new Paint();
+        paint.setColor(Color.YELLOW);
+        paint.setStrokeWidth(15);
+        canvas.drawPoint(px, py, paint);
+        paint.setStrokeWidth(4);
+        canvas.drawLine(px, py, px + pdx * 20, py + pdy * 20, paint);
+    }
+    float FixAng(float a){ if(a>359){ a-=359;} if(a<1){ a+=359;} return a;}
+    float dist(float ax,float ay,float bx,float by){return (float)Math.sqrt((bx-ax) * (bx-ax) + (by-ay) * (by-ay));}
+    private void drawRay(Canvas canvas) {
+        Paint paint = new Paint();
+        int r, mx, my, mp, dof;
+        float rx = 0, ry = 0, ra, xo = 0, yo = 0, aTan,disT = 1;
+        ra = (float) Math.toRadians(FixAng(360 - pa)) - DR*30;
+        if(ra < 0){ra+=2*PI;}if(ra>2*PI){ra-=2*PI;}
+        for (r = 0; r < FOV; r++) {
+            //Horizontal lines
+            dof = 0;
+            float disH = 10000000, hx = px, hy = py;
+            aTan = -1 / (float) Math.tan(ra);
+            if (ra == 0 || ra == PI) {
+                rx = px + 10;
+                ry = py + 10;
+                dof = 8;
+            } else if (ra > PI) {
+                ry = ((float) (((int) py >> 6) << 6)) - 0.0001f;
+                rx = (py - ry) * aTan + px;
+                yo = -64;
+                xo = -yo * aTan;
+            }//Looking Up
+            else if (ra < PI) {
+                ry = ((float) (((int) py >> 6) << 6)) + 64;
+                rx = (py - ry) * aTan + px;
+                yo = 64;
+                xo = -yo * aTan;
+            }//Looking Down
+            while (dof < 8) {
+                mx = (int) (rx) >> 6;
+                my = (int) (ry) >> 6;
+                mp = my * MAP_WIDTH + mx;
+                if (mp > 0 && mp < MAP_SIZE) {
+                    if (map[mp] == 0) {//hit wall
+                        rx += xo;
+                        ry += yo;
+                        dof += 1;
+
+                    } else {
+                        dof = 8;
+                        hx = rx;
+                        hy = ry;
+                        disH = dist(px, py, hx, hy);
+                    }
+                } else
+                    dof = 8;
+            }
+
+            // vertical Lines
+            float disV = 10000000, Vx = px, Vy = py;
+            dof = 0;
+            aTan = -(float) Math.tan(ra);
+            if (ra == 0 || ra == PI) { // looking straight up or down
+                rx = px + 10;
+                ry = py + 10;
+                dof = 8;
+            } else if (ra > P2 && ra < P3) {
+                rx = ((float) (((int) px >> 6) << 6)) - 0.0001f;
+                ry = (px - rx) * aTan + py;
+                xo = -64;
+                yo = -xo * aTan;
+            }//Looking Left
+            else if (ra < P2 || ra > P3) {
+                rx = ((float) (((int) px >> 6) << 6)) + 64;
+                ry = (px - rx) * aTan + py;
+                xo = 64;
+                yo = -xo * aTan;
+            }//Looking Right
+            while (dof < 8) {
+                mx = (int) (rx) >> 6;
+                my = (int) (ry) >> 6;
+                mp = my * MAP_WIDTH + mx;
+                if (mp > 0 && mp < MAP_SIZE) {
+                    if (map[mp] == 0) {//hit wall
+                        rx += xo;
+                        ry += yo;
+                        dof += 1;
+
+                    } else {
+                        dof = 8;
+                        Vx = rx;
+                        Vy = ry;
+                        disV = dist(px, py, Vx, Vy);
+                    }
+                } else
+                    dof = 8;
+            }
+            if (disV < disH) {//vertical wall hit
+                rx = Vx;
+                ry = Vy;
+                disT = disV;
+                paint.setColor(Color.rgb((int)(255*0.9), 0, 0));
+            }
+            if (disH <= disV) {//horizontal wall hit
+                rx = hx;
+                ry = hy;
+                disT = disH;
+                paint.setColor(Color.rgb((int)(255 * 0.7), 0, 0));
+            }
+            paint.setStrokeWidth(1);
+            canvas.drawLine((int) px, (int) py, (int) rx, (int) ry, paint);
+            //---Draw 3D Walls---
+            float ca=(float) Math.toRadians(FixAng(360 - pa))-ra;
+            if (ca < 0) {
+                ca += 2 * PI;
+            }
+            if (ca > 2 * PI) {
+                ca -= 2 * PI;
+            }
+            disT=disT*(float)Math.cos(ca);//fix Fisheye
+            float lineH=(MAP_SIZE * 320)/disT;
+            if(lineH > 320){lineH = 320;}
+            float lineO = 160-lineH/2;
+
+            paint.setStrokeWidth(8);
+            canvas.drawLine(r*8 + 530, lineO, r*8 + 530, lineH + lineO, paint);
+            paint.setColor(Color.rgb(255-(int)(255 * 0.6), 255-(int)(255 * 0.6),255 ));
+            canvas.drawLine(r*8 + 530, lineO, r*8 + 530, 0, paint);
+            paint.setColor(Color.rgb(255-(int)(255 * 0.8), (int)(255 * 0.7), 255-(int)(255 * 0.8)));
+            canvas.drawLine(r*8 + 530,  lineH + lineO, r*8 + 530, 320, paint);
+
+            ra += DR;
+            if (ra < 0) {
+                ra += 2 * PI;
+            }
+            if (ra > 2 * PI) {
+                ra -= 2 * PI;
+            }
+        }
+    }
+
+    public void movePlayerLeft() {
+        pa = FixAng(pa - 7);
+
+        pdx = (float) Math.cos(Math.toRadians(pa));
+        pdy = (float) -Math.sin(Math.toRadians(pa));
+        invalidate();
+    }
+    public void movePlayerUp() {
+        px += pdx * 7;
+        py += pdy * 7;
+        invalidate();
+    }
+    public void movePlayerDown() {
+        px -= pdx * 7;
+        py -= pdy * 7;
+        invalidate();
+    }
+    public void movePlayerRight() {
+        pa = FixAng(pa + 7);
+
+        pdx = (float) Math.cos(Math.toRadians(pa));
+        pdy = (float) -Math.sin(Math.toRadians(pa));
+        invalidate();
+    }
+}
